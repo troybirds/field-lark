@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a1628">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Field Lark — eBird Voice Logger</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%230a1628%22/><text x=%2250%25%22 y=%2262%25%22 font-size=%2260%22 text-anchor=%22middle%22>🐦</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0a1628;
+    --ink-deep: #060e1c;
+    --paper: #f5f0e8;
+    --sage: #4a7c59;
+    --sage-light: #6a9e78;
+    --amber: #c8832a;
+    --amber-light: #e8a84a;
+    --cream: #faf6ee;
+    --mist: #d4cfc5;
+    --danger: #c0392b;
+    --sky: #2980b9;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    overscroll-behavior: none;
+  }
+
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--ink);
+    color: var(--paper);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  button { font-family: inherit; border: none; background: none; color: inherit; cursor: pointer; }
+  input, textarea { font-family: inherit; }
+
+  /* ── HEADER ── */
+  header {
+    padding: 18px 20px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 1px solid rgba(245,240,232,0.1);
+    flex-shrink: 0;
+    background: linear-gradient(180deg, var(--ink-deep), var(--ink));
+  }
+  .brand h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    line-height: 1;
+  }
+  .brand h1 span { color: var(--sage-light); font-style: italic; }
+  .brand p {
+    font-size: 9px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--mist);
+    margin-top: 4px;
+    opacity: 0.6;
+  }
+  .session-info {
+    text-align: right;
+    font-size: 10px;
+    color: var(--mist);
+    line-height: 1.7;
+  }
+  .session-info strong { color: var(--amber-light); font-size: 14px; display: block; }
+
+  /* ── LOCATION BAR ── */
+  .location-bar {
+    padding: 10px 20px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(245,240,232,0.08);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .location-bar svg { flex-shrink: 0; opacity: 0.5; width: 14px; height: 14px; }
+  .location-bar input {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--paper);
+    font-size: 13px;
+    outline: none;
+  }
+  .location-bar input::placeholder { color: var(--mist); opacity: 0.5; }
+
+  /* ── FEED ── */
+  .feed {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 16px 180px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 60px 30px;
+    color: var(--mist);
+    opacity: 0.5;
+  }
+  .empty-state .icon { font-size: 40px; margin-bottom: 14px; }
+  .empty-state p { font-size: 12px; line-height: 1.7; letter-spacing: 0.3px; }
+
+  .entry {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(245,240,232,0.08);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .entry .count {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--amber-light);
+    min-width: 34px;
+    text-align: center;
+  }
+  .entry .species {
+    flex: 1;
+    font-size: 14px;
+    color: var(--cream);
+  }
+  .entry .species .unmatched-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px; height: 15px;
+    margin-left: 6px;
+    border-radius: 50%;
+    background: rgba(200,131,42,0.25);
+    color: var(--amber-light);
+    font-size: 10px;
+    font-weight: 600;
+    vertical-align: middle;
+  }
+  .entry .species .raw {
+    display: block;
+    font-size: 10px;
+    color: var(--mist);
+    opacity: 0.5;
+    margin-top: 2px;
+  }
+  .entry .del-btn {
+    color: var(--mist);
+    opacity: 0.4;
+    font-size: 16px;
+    padding: 4px 8px;
+  }
+  .entry .del-btn:active { opacity: 1; color: var(--danger); }
+
+  /* ── STATS STRIP ── */
+  .stats-strip {
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 16px;
+    background: rgba(255,255,255,0.03);
+    border-top: 1px solid rgba(245,240,232,0.08);
+    border-bottom: 1px solid rgba(245,240,232,0.08);
+    flex-shrink: 0;
+  }
+  .stat { text-align: center; }
+  .stat strong { display: block; font-size: 17px; color: var(--sage-light); font-family: 'Playfair Display', serif; }
+  .stat span { font-size: 8px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--mist); opacity: 0.6; }
+
+  /* ── CONTROL DOCK ── */
+  .dock {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    padding: 16px 20px calc(20px + env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, transparent, var(--ink) 30%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    z-index: 10;
+  }
+  .mic-btn {
+    width: 76px; height: 76px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--sage-light), var(--sage));
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(74,124,89,0.4);
+    transition: transform 0.15s ease;
+    position: relative;
+  }
+  .mic-btn:active { transform: scale(0.94); }
+  .mic-btn.recording {
+    background: radial-gradient(circle at 35% 30%, #e05555, var(--danger));
+    box-shadow: 0 4px 24px rgba(192,57,43,0.5);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 4px 24px rgba(192,57,43,0.5); }
+    50% { box-shadow: 0 4px 34px rgba(192,57,43,0.8), 0 0 0 12px rgba(192,57,43,0.08); }
+  }
+  .mic-btn svg { width: 30px; height: 30px; }
+  .side-btn {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(245,240,232,0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .side-btn:active { background: rgba(255,255,255,0.12); }
+
+  .live-transcript {
+    position: fixed;
+    bottom: 130px; left: 20px; right: 20px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--amber-light);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+    z-index: 9;
+  }
+  .live-transcript.show { opacity: 1; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    top: 14px; left: 50%;
+    transform: translateX(-50%) translateY(-40px);
+    background: var(--cream);
+    color: var(--ink);
+    padding: 10px 18px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 100;
+    white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--danger); color: var(--cream); }
+
+  /* ── MODALS ── */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(6,14,28,0.85);
+    display: flex; align-items: flex-end;
+    z-index: 50;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .modal-backdrop.open { opacity: 1; pointer-events: auto; }
+  .modal {
+    background: var(--ink-deep);
+    border: 1px solid rgba(245,240,232,0.1);
+    border-radius: 20px 20px 0 0;
+    padding: 24px 22px calc(24px + env(safe-area-inset-bottom));
+    width: 100%;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.2,0.9,0.3,1);
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .modal-backdrop.open .modal { transform: translateY(0); }
+  .modal h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    margin-bottom: 18px;
+  }
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--mist);
+    margin-bottom: 6px;
+  }
+  .field input {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(245,240,232,0.15);
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: var(--paper);
+    font-size: 15px;
+    outline: none;
+  }
+  .field input:focus { border-color: var(--sage-light); }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .modal-actions button {
+    flex: 1;
+    padding: 13px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+  }
+  .btn-primary { background: var(--sage); color: var(--cream); }
+  .btn-danger { background: rgba(192,57,43,0.15); color: #e88478; }
+  .btn-ghost { background: rgba(255,255,255,0.06); color: var(--mist); }
+
+  .export-option {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+  .export-option .ic { font-size: 20px; }
+  .export-option .txt strong { display: block; font-size: 13px; }
+  .export-option .txt span { font-size: 10px; color: var(--mist); opacity: 0.7; }
+
+  ::-webkit-scrollbar { width: 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>Field <span>Lark</span></h1>
+    <p>eBird Voice Logger</p>
+  </div>
+  <div class="session-info">
+    <strong id="statTime">00:00</strong>
+    <span id="statDate">—</span>
+  </div>
+</header>
+
+<div class="location-bar">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-7.5 8-13a8 8 0 1 0-16 0c0 5.5 8 13 8 13z"/><circle cx="12" cy="9" r="3"/></svg>
+  <input id="locationInput" type="text" placeholder="Location (e.g. Millennium Park)">
+</div>
+
+<div class="feed" id="feed">
+  <div class="empty-state" id="emptyState">
+    <div class="icon">🎙️</div>
+    <p>Tap the mic and speak.<br>Try "three Red-tailed Hawks" or<br>"Mallard times four"</p>
+  </div>
+</div>
+
+<div class="live-transcript" id="liveTranscript"></div>
+
+<div class="stats-strip">
+  <div class="stat"><strong id="statSpecies">0</strong><span>Species</span></div>
+  <div class="stat"><strong id="statCount">0</strong><span>Individuals</span></div>
+  <div class="stat"><strong id="statEntries">0</strong><span>Entries</span></div>
+</div>
+
+<div class="dock">
+  <button class="side-btn" id="resetBtn" title="New session">↺</button>
+  <button class="mic-btn" id="micBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+      <line x1="12" y1="19" x2="12" y2="23"/>
+      <line x1="8" y1="23" x2="16" y2="23"/>
+    </svg>
+  </button>
+  <button class="side-btn" id="exportBtn" title="Export">⬆</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Edit Modal -->
+<div class="modal-backdrop" id="editBackdrop">
+  <div class="modal">
+    <h2>Edit sighting</h2>
+    <div class="field">
+      <label>Species</label>
+      <input id="editSpecies" type="text">
+    </div>
+    <div class="field">
+      <label>Count</label>
+      <input id="editCount" type="number" min="1">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-danger" id="deleteEntryBtn">Delete</button>
+      <button class="btn-primary" id="saveEntryBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal-backdrop" id="exportBackdrop">
+  <div class="modal">
+    <h2>Export checklist</h2>
+    <div class="export-option" id="shareOption">
+      <div class="ic">📤</div>
+      <div class="txt"><strong>Share CSV</strong><span>Send to eBird app or any app</span></div>
+    </div>
+    <div class="export-option" id="copyOption">
+      <div class="ic">📋</div>
+      <div class="txt"><strong>Copy to clipboard</strong><span>Paste into eBird import</span></div>
+    </div>
+    <div class="export-option" id="downloadOption">
+      <div class="ic">💾</div>
+      <div class="txt"><strong>Download file</strong><span>Save .csv to device</span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="closeExportBtn" style="flex:none; width:100%;">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════ STATE ═══════════════════════════
+const state = {
+  entries: [],      // {id, species, count, raw, time}
+  recording: false,
+  sessionStart: Date.now(),
+  editingId: null
+};
+
+const feed = document.getElementById('feed');
+const emptyState = document.getElementById('emptyState');
+const micBtn = document.getElementById('micBtn');
+const liveTranscript = document.getElementById('liveTranscript');
+const toastEl = document.getElementById('toast');
+let toastTimer;
+
+// ═══════════════════════════ SPECIES TAXONOMY (common North American birds) ═
+// A working subset of eBird's official common names, covering the species
+// most likely to turn up on an average outing. Used as the match target for
+// fuzzy correction of misheard phrases.
+const SPECIES_LIST = [
+"Snow Goose","Canada Goose","Cackling Goose","Trumpeter Swan","Tundra Swan","Wood Duck","Blue-winged Teal",
+"Northern Shoveler","Gadwall","American Wigeon","Mallard","American Black Duck","Northern Pintail",
+"Green-winged Teal","Canvasback","Redhead","Ring-necked Duck","Greater Scaup","Lesser Scaup","Bufflehead",
+"Common Goldeneye","Hooded Merganser","Common Merganser","Red-breasted Merganser","Ruddy Duck",
+"Wild Turkey","Ring-necked Pheasant","Ruffed Grouse","Northern Bobwhite","Pied-billed Grebe","Horned Grebe",
+"Rock Pigeon","Eurasian Collared-Dove","Mourning Dove","Yellow-billed Cuckoo","Black-billed Cuckoo",
+"Common Nighthawk","Chimney Swift","Ruby-throated Hummingbird","Anna's Hummingbird","Virginia Rail","Sora",
+"American Coot","Sandhill Crane","Black-necked Stilt","American Avocet","Killdeer","Semipalmated Plover",
+"Spotted Sandpiper","Solitary Sandpiper","Greater Yellowlegs","Lesser Yellowlegs","Willet","Least Sandpiper",
+"Wilson's Snipe","American Woodcock","Ring-billed Gull","Herring Gull","Great Black-backed Gull",
+"Laughing Gull","Caspian Tern","Common Tern","Forster's Tern","Common Loon","Double-crested Cormorant",
+"American White Pelican","Brown Pelican","American Bittern","Great Blue Heron","Great Egret","Snowy Egret",
+"Little Blue Heron","Cattle Egret","Green Heron","Black-crowned Night-Heron","Turkey Vulture","Black Vulture",
+"Osprey","Bald Eagle","Northern Harrier","Sharp-shinned Hawk","Cooper's Hawk","Red-shouldered Hawk",
+"Broad-winged Hawk","Red-tailed Hawk","Rough-legged Hawk","Golden Eagle","Barn Owl","Eastern Screech-Owl",
+"Great Horned Owl","Barred Owl","Short-eared Owl","Belted Kingfisher","Red-headed Woodpecker",
+"Red-bellied Woodpecker","Yellow-bellied Sapsucker","Downy Woodpecker","Hairy Woodpecker",
+"Northern Flicker","Pileated Woodpecker","American Kestrel","Merlin","Peregrine Falcon",
+"Eastern Wood-Pewee","Willow Flycatcher","Least Flycatcher","Eastern Phoebe","Great Crested Flycatcher",
+"Eastern Kingbird","Loggerhead Shrike","White-eyed Vireo","Yellow-throated Vireo","Warbling Vireo",
+"Red-eyed Vireo","Blue Jay","Steller's Jay","Florida Scrub-Jay","American Crow","Fish Crow","Common Raven",
+"Horned Lark","Purple Martin","Tree Swallow","Northern Rough-winged Swallow","Bank Swallow","Barn Swallow",
+"Cliff Swallow","Carolina Chickadee","Black-capped Chickadee","Tufted Titmouse","Red-breasted Nuthatch",
+"White-breasted Nuthatch","Brown-headed Nuthatch","Brown Creeper","Carolina Wren","House Wren",
+"Winter Wren","Marsh Wren","Blue-gray Gnatcatcher","Golden-crowned Kinglet","Ruby-crowned Kinglet",
+"Eastern Bluebird","Veery","Swainson's Thrush","Hermit Thrush","Wood Thrush","American Robin","Gray Catbird",
+"Brown Thrasher","Northern Mockingbird","European Starling","Cedar Waxwing","House Sparrow",
+"House Finch","Purple Finch","Red Crossbill","Pine Siskin","American Goldfinch","Lapland Longspur",
+"Snow Bunting","Chipping Sparrow","Field Sparrow","Vesper Sparrow","Savannah Sparrow","Fox Sparrow",
+"Song Sparrow","Lincoln's Sparrow","Swamp Sparrow","White-throated Sparrow","White-crowned Sparrow",
+"Dark-eyed Junco","Eastern Towhee","Yellow-breasted Chat","Bobolink","Eastern Meadowlark",
+"Western Meadowlark","Orchard Oriole","Baltimore Oriole","Red-winged Blackbird","Brown-headed Cowbird",
+"Rusty Blackbird","Common Grackle","Boat-tailed Grackle","Ovenbird","Louisiana Waterthrush",
+"Black-and-white Warbler","Prothonotary Warbler","Tennessee Warbler","Nashville Warbler",
+"Common Yellowthroat","Hooded Warbler","American Redstart","Cape May Warbler","Northern Parula",
+"Magnolia Warbler","Yellow Warbler","Chestnut-sided Warbler","Blackpoll Warbler","Black-throated Blue Warbler",
+"Palm Warbler","Pine Warbler","Yellow-rumped Warbler","Yellow-throated Warbler","Prairie Warbler",
+"Black-throated Green Warbler","Wilson's Warbler","Canada Warbler","Scarlet Tanager","Summer Tanager",
+"Northern Cardinal","Rose-breasted Grosbeak","Blue Grosbeak","Indigo Bunting","Painted Bunting",
+"Dickcissel","Chestnut-backed Chickadee","Mountain Chickadee","Black-headed Grosbeak",
+"California Quail","California Scrub-Jay","Acorn Woodpecker","Oak Titmouse",
+"Bushtit","Wrentit","Spotted Towhee","California Towhee","Lesser Goldfinch",
+"Great-tailed Grackle","Black Phoebe","Say's Phoebe","Western Bluebird","Varied Thrush","Pygmy Nuthatch",
+"White-tailed Kite","Anhinga","Wood Stork","Roseate Spoonbill","Limpkin",
+"Snail Kite","Purple Gallinule","Common Gallinule","Hutton's Vireo","Bell's Vireo","Plumbeous Vireo",
+"Cassin's Vireo","Pacific Wren","Bewick's Wren","Rock Wren","Canyon Wren","American Pipit"
+];
+
+// Phonetic / colloquial aliases where a fuzzy string match alone wouldn't help
+const SPECIES_ALIASES = {
+  "robin": "American Robin", "cardinal": "Northern Cardinal", "chickadee": "Black-capped Chickadee",
+  "crow": "American Crow", "starling": "European Starling", "goldfinch": "American Goldfinch",
+  "pigeon": "Rock Pigeon", "seagull": "Ring-billed Gull", "hawk": "Red-tailed Hawk",
+  "titmouse": "Tufted Titmouse", "nuthatch": "White-breasted Nuthatch", "wren": "Carolina Wren",
+  "junco": "Dark-eyed Junco", "chestnut back": "Chestnut-backed Chickadee",
+  "chestnut backed": "Chestnut-backed Chickadee", "chestnut backed chickadee": "Chestnut-backed Chickadee"
+};
+
+const NUMBER_WORDS = {
+  one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10,
+  eleven:11, twelve:12, thirteen:13, fourteen:14, fifteen:15, sixteen:16,
+  seventeen:17, eighteen:18, nineteen:19, twenty:20, a:1, an:1, single:1, pair:2, couple:2,
+  // Common homophones Chrome's speech engine substitutes for number words
+  for:4, too:2, to:2, won:1, ate:8, tree:3
+};
+
+// ═══════════════════════════ NLP PARSER ═══════════════════════════
+// Extracts a count (if explicitly spoken) and the remaining species text,
+// without yet matching that text against the taxonomy. Kept separate so a
+// burst of competing speech-recognition hypotheses for the same utterance
+// can each be scored independently and the best parts combined.
+function extractCountAndSpeciesText(text) {
+  let t = text.toLowerCase().trim().replace(/[.,!?]/g, '');
+  let count = null;
+  let speciesText = t;
+
+  // Pattern: "<species> x4" or "<species> times four"
+  let m = t.match(/^(.*?)\s*(?:x|times)\s*(\d+|[a-z]+)$/);
+  if (m) {
+    speciesText = m[1].trim();
+    const c = parseInt(m[2]);
+    count = !isNaN(c) ? c : (NUMBER_WORDS[m[2]] !== undefined ? NUMBER_WORDS[m[2]] : null);
+  } else {
+    // Pattern: "<number> <species>" e.g. "three red tailed hawks"
+    m = t.match(/^(\d+|[a-z]+)\s+(.*)$/);
+    if (m && (NUMBER_WORDS[m[1]] !== undefined || /^\d+$/.test(m[1]))) {
+      count = parseInt(m[1]) || NUMBER_WORDS[m[1]];
+      speciesText = m[2].trim();
+    } else {
+      // Pattern: "<species>, <number>" or "<species> <number>" trailing
+      m = t.match(/^(.*?)[\s,]+(\d+|[a-z]+)$/);
+      if (m && (NUMBER_WORDS[m[2]] !== undefined || /^\d+$/.test(m[2]))) {
+        speciesText = m[1].trim();
+        count = parseInt(m[2]) || NUMBER_WORDS[m[2]];
+      }
+    }
+  }
+
+  const explicit = count !== null;
+  if (!explicit) { count = 1; speciesText = t; }
+  return { count, explicit, speciesText };
+}
+
+// Single-utterance convenience wrapper (used for manual/one-shot parsing)
+function parseUtterance(text) {
+  const { count, speciesText } = extractCountAndSpeciesText(text);
+  const match = matchSpecies(speciesText);
+  return { species: match.name, matched: match.matched, count, raw: text };
+}
+
+// ── Levenshtein edit distance ──
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const row = new Array(n + 1);
+  for (let j = 0; j <= n; j++) row[j] = j;
+  for (let i = 1; i <= m; i++) {
+    let prev = row[0];
+    row[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const tmp = row[j];
+      row[j] = a[i-1] === b[j-1] ? prev : 1 + Math.min(prev, row[j], row[j-1]);
+      prev = tmp;
+    }
+  }
+  return row[n];
+}
+
+function similarity(a, b) {
+  const maxLen = Math.max(a.length, b.length) || 1;
+  return 1 - levenshtein(a, b) / maxLen;
+}
+
+function tokenOverlap(a, b) {
+  const aw = a.split(' ').filter(Boolean), bw = b.split(' ').filter(Boolean);
+  if (!aw.length || !bw.length) return 0;
+  let hits = 0;
+  aw.forEach(w => { if (bw.some(bw2 => similarity(w, bw2) > 0.75)) hits++; });
+  return hits / Math.max(aw.length, bw.length);
+}
+
+// Precompute normalized taxonomy strings once
+const SPECIES_NORMALIZED = SPECIES_LIST.map(name => ({
+  name,
+  norm: name.toLowerCase().replace(/[-']/g, ' ').replace(/\s+/g, ' ').trim()
+}));
+
+const MATCH_THRESHOLD = 0.6;
+
+function matchSpecies(text) {
+  const clean = text.trim().toLowerCase().replace(/[-']/g, ' ').replace(/\s+/g, ' ').trim();
+  const singular = clean.replace(/s\b/g, '');
+
+  // 1. Exact alias hit (colloquial names, common misheard fragments)
+  if (SPECIES_ALIASES[clean]) return { name: SPECIES_ALIASES[clean], matched: true, score: 1 };
+  if (SPECIES_ALIASES[singular]) return { name: SPECIES_ALIASES[singular], matched: true, score: 1 };
+
+  // 2. Exact taxonomy hit
+  const exact = SPECIES_NORMALIZED.find(s => s.norm === clean || s.norm === singular);
+  if (exact) return { name: exact.name, matched: true, score: 1 };
+
+  // 3. Fuzzy match: blend whole-string similarity with token overlap so word
+  // order and minor mis-hearings ("chestnut back" vs "chestnut backed
+  // chickadee") both score well.
+  let best = null, bestScore = 0;
+  for (const s of SPECIES_NORMALIZED) {
+    const whole = similarity(clean, s.norm);
+    const tokens = tokenOverlap(clean, s.norm);
+    const score = Math.max(whole, tokens * 0.9 + whole * 0.1);
+    if (score > bestScore) { bestScore = score; best = s; }
+  }
+
+  if (best && bestScore >= MATCH_THRESHOLD) {
+    return { name: best.name, matched: true, score: bestScore };
+  }
+
+  // 4. No confident match — fall back to whatever was said, title-cased
+  const fallback = text.trim().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  return { name: fallback, matched: false, score: bestScore };
+}
+
+// ═══════════════════════════ ENTRY MANAGEMENT ═══════════════════════════
+function addEntry(parsed) {
+  const existing = state.entries.find(e => e.species.toLowerCase() === parsed.species.toLowerCase());
+  if (existing) {
+    existing.count += parsed.count;
+    existing.time = Date.now();
+    showToast(`${parsed.species} → ${existing.count} total`);
+  } else {
+    state.entries.unshift({
+      id: 'e' + Date.now() + Math.random().toString(36).slice(2,6),
+      species: parsed.species,
+      matched: parsed.matched,
+      count: parsed.count,
+      raw: parsed.raw,
+      time: Date.now()
+    });
+    if (parsed.matched) {
+      showToast(`Logged: ${parsed.count} ${parsed.species}`);
+    } else {
+      showToast(`Logged (unmatched): ${parsed.species}`);
+    }
+  }
+  renderFeed();
+  updateStats();
+}
+
+function renderFeed() {
+  if (state.entries.length === 0) {
+    emptyState.style.display = 'block';
+    feed.querySelectorAll('.entry').forEach(el => el.remove());
+    return;
+  }
+  emptyState.style.display = 'none';
+  feed.innerHTML = '';
+  state.entries.forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'entry';
+    div.dataset.id = e.id;
+    const unmatchedBadge = e.matched === false
+      ? '<span class="unmatched-badge" title="Not matched to eBird taxonomy — tap to correct">?</span>'
+      : '';
+    div.innerHTML = `
+      <div class="count">${e.count}</div>
+      <div class="species">${e.species}${unmatchedBadge}<span class="raw">"${e.raw}"</span></div>
+      <div class="del-btn">✕</div>
+    `;
+    div.addEventListener('click', (ev) => {
+      if (ev.target.classList.contains('del-btn')) {
+        deleteEntry(e.id);
+      } else {
+        openEditModal(e.id);
+      }
+    });
+    feed.appendChild(div);
+  });
+}
+
+function deleteEntry(id) {
+  state.entries = state.entries.filter(e => e.id !== id);
+  renderFeed();
+  updateStats();
+  showToast('Entry deleted');
+}
+
+function updateStats() {
+  document.getElementById('statSpecies').textContent = state.entries.length;
+  document.getElementById('statCount').textContent = state.entries.reduce((s,e) => s + e.count, 0);
+  document.getElementById('statEntries').textContent = state.entries.length;
+}
+
+// ═══════════════════════════ EDIT MODAL ═══════════════════════════
+const editBackdrop = document.getElementById('editBackdrop');
+function openEditModal(id) {
+  const e = state.entries.find(x => x.id === id);
+  if (!e) return;
+  state.editingId = id;
+  document.getElementById('editSpecies').value = e.species;
+  document.getElementById('editCount').value = e.count;
+  editBackdrop.classList.add('open');
+}
+document.getElementById('saveEntryBtn').addEventListener('click', () => {
+  const e = state.entries.find(x => x.id === state.editingId);
+  if (e) {
+    e.species = document.getElementById('editSpecies').value.trim() || e.species;
+    e.count = parseInt(document.getElementById('editCount').value) || e.count;
+    e.matched = true;
+  }
+  editBackdrop.classList.remove('open');
+  renderFeed();
+  updateStats();
+});
+document.getElementById('deleteEntryBtn').addEventListener('click', () => {
+  deleteEntry(state.editingId);
+  editBackdrop.classList.remove('open');
+});
+
+// ═══════════════════════════ SPEECH RECOGNITION ═══════════════════════════
+let recognition = null;
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+
+  recognition.onresult = (event) => {
+    let interim = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        queueFinalTranscript(transcript);
+      } else {
+        interim = transcript;
+      }
+    }
+    if (interim) {
+      liveTranscript.textContent = interim;
+      liveTranscript.classList.add('show');
+      // Speech is still actively in progress — push back the commit timer so
+      // a normal mid-sentence pause doesn't split one utterance into two entries.
+      extendPendingWindow();
+    }
+  };
+
+  recognition.onerror = (event) => {
+    if (event.error === 'no-speech') return;
+    showToast('Mic error: ' + event.error, true);
+    stopRecording();
+  };
+
+  recognition.onend = () => {
+    if (state.recording) {
+      try { recognition.start(); } catch(e) {}
+    }
+  };
+} else {
+  showToast('Speech recognition not supported in this browser', true);
+}
+
+// Android Chrome's continuous recognition often fires several competing
+// "final" hypotheses for one spoken phrase in quick succession — and later
+// hypotheses don't always strictly extend earlier ones. Sometimes a later
+// guess nails the species but drops the number ("four red-tailed hawks" →
+// "four red" then "for red tailed hawks"). So rather than picking a single
+// "winning" chunk, we buffer every chunk from the burst and combine the
+// most confident species match with the most confident explicit count.
+let pendingChunks = [];
+let pendingTimer = null;
+const FINAL_SETTLE_MS = 900;
+
+function queueFinalTranscript(text) {
+  text = text.trim();
+  if (!text) return;
+  pendingChunks.push(text);
+  extendPendingWindow();
+}
+
+function extendPendingWindow() {
+  if (!pendingChunks.length) return;
+  clearTimeout(pendingTimer);
+  pendingTimer = setTimeout(commitPendingTranscript, FINAL_SETTLE_MS);
+}
+
+function commitPendingTranscript() {
+  if (!pendingChunks.length) return;
+  liveTranscript.classList.remove('show');
+
+  const parsedChunks = pendingChunks.map(chunk => {
+    const { count, explicit, speciesText } = extractCountAndSpeciesText(chunk);
+    const match = matchSpecies(speciesText);
+    return { chunk, count, explicit, match };
+  });
+
+  // Best species = highest-confidence match across all chunks in the burst
+  const bestSpeciesChunk = parsedChunks.reduce((best, cur) =>
+    cur.match.score > best.match.score ? cur : best
+  );
+
+  // Best count = the largest explicitly-spoken number found in any chunk
+  // (falls back to 1 if no chunk had an explicit count)
+  const explicitCounts = parsedChunks.filter(p => p.explicit).map(p => p.count);
+  const bestCount = explicitCounts.length ? Math.max(...explicitCounts) : 1;
+
+  const uniqueRaw = [...new Set(pendingChunks)].join(' / ');
+
+  addEntry({
+    species: bestSpeciesChunk.match.name,
+    matched: bestSpeciesChunk.match.matched,
+    count: bestCount,
+    raw: uniqueRaw
+  });
+
+  pendingChunks = [];
+}
+
+function startRecording() {
+  if (!recognition) { showToast('Speech recognition unavailable', true); return; }
+  try {
+    recognition.start();
+    state.recording = true;
+    micBtn.classList.add('recording');
+    requestWakeLock();
+  } catch(e) {}
+}
+
+function stopRecording() {
+  state.recording = false;
+  micBtn.classList.remove('recording');
+  liveTranscript.classList.remove('show');
+  clearTimeout(pendingTimer);
+  commitPendingTranscript();
+  if (recognition) { try { recognition.stop(); } catch(e) {} }
+}
+
+micBtn.addEventListener('click', () => {
+  state.recording ? stopRecording() : startRecording();
+});
+
+// ═══════════════════════════ SESSION TIMER ═══════════════════════════
+function updateTimer() {
+  const elapsed = Math.floor((Date.now() - state.sessionStart) / 1000);
+  const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+  const s = (elapsed % 60).toString().padStart(2, '0');
+  document.getElementById('statTime').textContent = `${m}:${s}`;
+}
+setInterval(updateTimer, 1000);
+document.getElementById('statDate').textContent = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+// ═══════════════════════════ RESET ═══════════════════════════
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (state.entries.length && !confirm('Start a new session? Current entries will be cleared.')) return;
+  state.entries = [];
+  state.sessionStart = Date.now();
+  renderFeed();
+  updateStats();
+  showToast('New session started');
+});
+
+// ═══════════════════════════ CSV EXPORT ═══════════════════════════
+function buildCSV() {
+  const location = document.getElementById('locationInput').value.trim() || 'Unnamed Location';
+  const now = new Date();
+  const date = now.toLocaleDateString('en-US');
+  const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  let rows = [['Common Name','Genus','Species','Number','Species Comments','Location Name','Latitude','Longitude','Date','Start Time','State/Province','Country','Protocol','Number of Observers','Duration (min)','All observations reported?','Distance covered (km)','Area covered (ha)','Checklist Comments']];
+  state.entries.forEach(e => {
+    rows.push([e.species,'','',e.count,'',location,'','',date,time,'','','Stationary',1,'','','','','']);
+  });
+  return rows.map(r => r.map(v => {
+    const s = String(v);
+    return s.includes(',') ? `"${s}"` : s;
+  }).join(',')).join('\n');
+}
+
+const exportBackdrop = document.getElementById('exportBackdrop');
+document.getElementById('exportBtn').addEventListener('click', () => {
+  if (state.entries.length === 0) { showToast('No entries to export yet', true); return; }
+  exportBackdrop.classList.add('open');
+});
+document.getElementById('closeExportBtn').addEventListener('click', () => exportBackdrop.classList.remove('open'));
+
+document.getElementById('copyOption').addEventListener('click', async () => {
+  const csv = buildCSV();
+  try {
+    await navigator.clipboard.writeText(csv);
+    showToast('CSV copied to clipboard');
+  } catch(e) { showToast('Copy failed', true); }
+  exportBackdrop.classList.remove('open');
+});
+
+document.getElementById('downloadOption').addEventListener('click', () => {
+  const csv = buildCSV();
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `field-lark-${Date.now()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showToast('CSV downloaded');
+  exportBackdrop.classList.remove('open');
+});
+
+document.getElementById('shareOption').addEventListener('click', async () => {
+  const csv = buildCSV();
+  const file = new File([csv], `field-lark-${Date.now()}.csv`, { type: 'text/csv' });
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'Field Lark checklist' });
+    } catch(e) {}
+  } else {
+    try {
+      await navigator.clipboard.writeText(csv);
+      showToast('Sharing unsupported — copied CSV instead');
+    } catch(e) { showToast('Share unavailable', true); }
+  }
+  exportBackdrop.classList.remove('open');
+});
+
+// ═══════════════════════════ TOAST ═══════════════════════════
+function showToast(msg, isError) {
+  toastEl.textContent = msg;
+  toastEl.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.className = 'toast', 2800);
+}
+
+// ═══════════════════════════ KEYBOARD (desktop testing) ═══════════════════
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+    e.preventDefault();
+    state.recording ? stopRecording() : startRecording();
+  }
+});
+
+// ═══════════════════════════ WAKE LOCK ═══════════════════════════
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try { await navigator.wakeLock.request('screen'); } catch(e) {}
+  }
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && state.recording) requestWakeLock();
+});
+
+// ═══════════════════════════ MODAL BACKDROP TAP-TO-CLOSE ═══════════════════
+document.querySelectorAll('.modal-backdrop').forEach(bd => {
+  bd.addEventListener('click', (e) => {
+    if (e.target === bd) bd.classList.remove('open');
+  });
+});
+
+// ═══════════════════════════ INIT ═══════════════════════════
+renderFeed();
+updateStats();
+updateTimer();
+</script>
+</body>
+</html>
